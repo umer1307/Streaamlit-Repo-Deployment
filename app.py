@@ -2,7 +2,7 @@ import streamlit as st
 
 
 def main() -> None:
-    st.title("First Streamlit App ok")
+    st.title("First Streamlit App ok new changes ")
     st.write("This is a simple Streamlit app created for the project.")
 
     name = st.text_input("Enter your name hello", "World")
