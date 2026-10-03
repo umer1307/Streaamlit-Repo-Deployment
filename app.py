@@ -12,6 +12,8 @@ OPERATIONS = {
     ast.Mult: operator.mul,
     ast.Div: operator.truediv,
 }
+INPUT_TRANSLATION = str.maketrans({"×": "*", "÷": "/", "−": "-"})
+ALLOWED_INPUT_CHARACTERS = frozenset("0123456789.+-*/() ")
 
 
 def evaluate(node: ast.AST) -> float:
@@ -37,6 +39,16 @@ def calculate(expression: str) -> float:
     if not math.isfinite(result):
         raise ValueError("The answer is outside the supported range.")
     return result
+
+
+def sanitize_input() -> None:
+    expression = st.session_state.calculator_input.translate(INPUT_TRANSLATION)
+    st.session_state.calculator_input = "".join(
+        character
+        for character in expression
+        if character in ALLOWED_INPUT_CHARACTERS
+    )
+    st.session_state.calculator_error = ""
 
 
 def press_button(label: str) -> None:
@@ -66,10 +78,6 @@ def press_button(label: str) -> None:
         st.session_state.calculator_error = ""
 
 
-def clear_error() -> None:
-    st.session_state.calculator_error = ""
-
-
 def main() -> None:
     st.set_page_config(page_title="Simple Calculator", page_icon="🧮", layout="centered")
     st.markdown(
@@ -88,16 +96,29 @@ def main() -> None:
             padding: 1.5rem;
         }
         .title { color: #fff; font-size: 2rem; font-weight: 800; text-align: center; }
-        .subtitle { color: #aab7d0; margin-bottom: 1rem; text-align: center; }
+        .live-result {
+            color: #9eacc5;
+            font-family: monospace;
+            font-size: .9rem;
+            line-height: 1.4rem;
+            min-height: 1.4rem;
+            overflow: hidden;
+            text-align: right;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
         div[data-testid="stTextInput"] input {
             background: #0d1424;
             border: 1px solid #3b4a6b;
             border-radius: 14px;
             color: #fff;
             font-family: monospace;
-            font-size: 1.7rem;
+            font-size: clamp(1rem, 5vw, 1.7rem);
             min-height: 3.7rem;
             text-align: right;
+        }
+        div[data-testid="stTextInput"] div[data-testid="InputInstructions"] {
+            display: none;
         }
         div.stButton > button {
             background: #26334d;
@@ -109,9 +130,6 @@ def main() -> None:
             min-height: 3.3rem;
         }
         div.stButton > button:hover { background: #394a6b; border-color: #7388b6; }
-        .result-label { color: #9eacc5; font-size: .8rem; margin-top: .4rem; }
-        .result { color: #74e0bf; font-family: monospace; font-size: 1.6rem; font-weight: 700; }
-        .tip { color: #9eacc5; font-size: .82rem; line-height: 1.5; margin-top: 1rem; text-align: center; }
         </style>
         """,
         unsafe_allow_html=True,
@@ -123,8 +141,21 @@ def main() -> None:
 
     with st.container(border=True):
         st.markdown('<div class="title">Simple Calculator</div>', unsafe_allow_html=True)
+        display = st.session_state.calculator_input
+        preview = ""
+        if display:
+            try:
+                preview = f"= {calculate(display):.12g}"
+            except (
+                SyntaxError,
+                ValueError,
+                ZeroDivisionError,
+                OverflowError,
+                RecursionError,
+            ):
+                pass
         st.markdown(
-            '<div class="subtitle">Type with your keyboard or use the buttons.</div>',
+            f'<div class="live-result">{html.escape(preview)}</div>',
             unsafe_allow_html=True,
         )
 
@@ -133,7 +164,7 @@ def main() -> None:
             key="calculator_input",
             placeholder="0",
             label_visibility="collapsed",
-            on_change=clear_error,
+            on_change=sanitize_input,
         )
 
         rows = [
@@ -159,35 +190,8 @@ def main() -> None:
                             args=(button_values.get(label, label),),
                         )
 
-        display = st.session_state.calculator_input
-        if display:
-            try:
-                result = calculate(display)
-                st.markdown(
-                    f'<div class="result-label">Answer</div><div class="result">'
-                    f'{html.escape(f"{result:.12g}")}</div>',
-                    unsafe_allow_html=True,
-                )
-            except (
-                SyntaxError,
-                ValueError,
-                ZeroDivisionError,
-                OverflowError,
-                RecursionError,
-            ):
-                st.markdown(
-                    '<div class="result-label">Answer</div><div class="result">—</div>',
-                    unsafe_allow_html=True,
-                )
-
         if st.session_state.calculator_error:
             st.error(st.session_state.calculator_error)
-
-        st.markdown(
-            '<div class="tip">Keyboard: type an expression such as 12 + 3 * 4, '
-            'then press Enter. Use +, -, *, / and decimals.</div>',
-            unsafe_allow_html=True,
-        )
 
 
 if __name__ == "__main__":
