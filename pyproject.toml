@@ -1,0 +1,7 @@
+[project]
+name = "streaamlit-repo-deployment"
+version = "0.1.0"
+requires-python = ">=3.14"
+dependencies = [
+    "streamlit>=1.65.0",
+]
