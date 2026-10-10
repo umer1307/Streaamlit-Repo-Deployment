@@ -14,10 +14,34 @@ OPERATIONS = {
     ast.Div: operator.truediv,
     ast.Pow: operator.pow,
 }
+
+
+def _clean_trig_result(value: float) -> float:
+    nearest_integer = round(value)
+    if math.isclose(value, nearest_integer, rel_tol=0.0, abs_tol=1e-15):
+        return float(nearest_integer)
+    return value
+
+
+def _sin_degrees(angle: float) -> float:
+    return _clean_trig_result(math.sin(math.radians(angle)))
+
+
+def _cos_degrees(angle: float) -> float:
+    return _clean_trig_result(math.cos(math.radians(angle)))
+
+
+def _tan_degrees(angle: float) -> float:
+    radians = math.radians(angle)
+    if math.isclose(math.cos(radians), 0.0, rel_tol=0.0, abs_tol=1e-15):
+        raise ValueError("tan is undefined for this angle.")
+    return _clean_trig_result(math.tan(radians))
+
+
 SCIENTIFIC_FUNCTIONS = {
-    "sin": math.sin,
-    "cos": math.cos,
-    "tan": math.tan,
+    "sin": _sin_degrees,
+    "cos": _cos_degrees,
+    "tan": _tan_degrees,
     "sqrt": math.sqrt,
     "ln": math.log,
     "log": math.log10,
@@ -37,10 +61,20 @@ LIVE_PREVIEW_SCRIPT = """
   window.__calculatorLivePreviewInstalled = true;
 
   const names = ["sin", "cos", "tan", "sqrt", "ln", "log", "pi", "e"];
+  const cleanTrigResult = value => {
+    const nearestInteger = Math.round(value);
+    return Math.abs(value - nearestInteger) < 1e-15 ? nearestInteger : value;
+  };
   const functions = {
-    sin: Math.sin,
-    cos: Math.cos,
-    tan: Math.tan,
+    sin: value => cleanTrigResult(Math.sin(value * Math.PI / 180)),
+    cos: value => cleanTrigResult(Math.cos(value * Math.PI / 180)),
+    tan: value => {
+      const radians = value * Math.PI / 180;
+      if (Math.abs(Math.cos(radians)) < 1e-15) {
+        throw new Error("tangent is undefined");
+      }
+      return cleanTrigResult(Math.tan(radians));
+    },
     sqrt: Math.sqrt,
     ln: Math.log,
     log: Math.log10
@@ -158,6 +192,21 @@ LIVE_PREVIEW_SCRIPT = """
     } catch {
       preview.textContent = "";
     }
+  }, true);
+
+  document.addEventListener("keydown", event => {
+    const input = event.target;
+    if (event.key !== "Enter" ||
+        !(input instanceof HTMLInputElement) ||
+        !input.closest('[data-testid="stTextInput"]')) return;
+
+    event.preventDefault();
+    setTimeout(() => {
+      const equalsButton = [...document.querySelectorAll(
+        'div[data-testid="stButton"] button'
+      )].find(button => button.textContent.trim() === "=");
+      if (equalsButton) equalsButton.click();
+    }, 0);
   }, true);
 })();
 </script>
